@@ -182,74 +182,156 @@
         </div>
 
     </div>
+    <script type="module">
+        import { initializeApp }
+            from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
 
-    <script>
+        import {
+            getDatabase,
+            ref,
+            set,
+            onValue
+        }
+            from "https://www.gstatic.com/firebasejs/12.0.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "YOUR_KEY",
+            authDomain: "YOUR_DOMAIN",
+            databaseURL: "YOUR_DATABASE_URL",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_BUCKET",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
         let timer;
-        let totalSeconds = 0;
 
-        function updateDisplay() {
-            let hrs = Math.floor(totalSeconds / 3600);
-            let mins = Math.floor((totalSeconds % 3600) / 60);
-            let secs = totalSeconds % 60;
+        // Start button
+        window.startTimer = function () {
+            const h =
+                parseInt(
+                    document.getElementById("hoursInput").value
+                ) || 0;
 
-            document.getElementById("hours").textContent =
-                String(hrs).padStart(2, '0');
+            const m =
+                parseInt(
+                    document.getElementById("minutesInput").value
+                ) || 0;
 
-            document.getElementById("minutes").textContent =
-                String(mins).padStart(2, '0');
+            const s =
+                parseInt(
+                    document.getElementById("secondsInput").value
+                ) || 0;
 
-            document.getElementById("seconds").textContent =
-                String(secs).padStart(2, '0');
-        }
+            const totalSeconds =
+                h * 3600 +
+                m * 60 +
+                s;
 
-        function startTimer() {
-            clearInterval(timer);
+            if (totalSeconds <= 0) return;
 
-            let h = parseInt(
-                document.getElementById("hoursInput").value
-            ) || 0;
+            const endTime =
+                Date.now() +
+                totalSeconds * 1000;
 
-            let m = parseInt(
-                document.getElementById("minutesInput").value
-            ) || 0;
-
-            let s = parseInt(
-                document.getElementById("secondsInput").value
-            ) || 0;
-
-            totalSeconds = h * 3600 + m * 60 + s;
-
-            updateDisplay();
-
-            timer = setInterval(() => {
-                if (totalSeconds <= 0) {
-                    clearInterval(timer);
-                    alert("⏰ Time's Up!");
-                    return;
+            set(
+                ref(db, "timer"),
+                {
+                    endTime: endTime
                 }
+            );
+        };
 
-                totalSeconds--;
-                updateDisplay();
-            }, 1000);
-        }
-
-        function stopTimer() {
-            clearInterval(timer);
-        }
-
-        function resetTimer() {
-            clearInterval(timer);
-
-            totalSeconds = 0;
+        // Reset button
+        window.resetTimer = function () {
+            set(
+                ref(db, "timer"),
+                {
+                    endTime: Date.now()
+                }
+            );
 
             document.getElementById("hoursInput").value = "";
             document.getElementById("minutesInput").value = "";
             document.getElementById("secondsInput").value = "";
+        };
 
-            updateDisplay();
+        // Stop button
+        window.stopTimer = function () {
+            set(
+                ref(db, "timer"),
+                {
+                    endTime: Date.now()
+                }
+            );
+        };
+
+        // Shared countdown
+        function startCountdown(endTime) {
+            clearInterval(timer);
+
+            timer = setInterval(() => {
+                const distance =
+                    endTime - Date.now();
+
+                if (distance <= 0) {
+                    clearInterval(timer);
+
+                    document.getElementById("hours")
+                        .textContent = "00";
+
+                    document.getElementById("minutes")
+                        .textContent = "00";
+
+                    document.getElementById("seconds")
+                        .textContent = "00";
+
+                    return;
+                }
+
+                const total =
+                    Math.floor(distance / 1000);
+
+                const hrs =
+                    Math.floor(total / 3600);
+
+                const mins =
+                    Math.floor(
+                        (total % 3600) / 60
+                    );
+
+                const secs =
+                    total % 60;
+
+                document.getElementById("hours")
+                    .textContent =
+                    String(hrs).padStart(2, "0");
+
+                document.getElementById("minutes")
+                    .textContent =
+                    String(mins).padStart(2, "0");
+
+                document.getElementById("seconds")
+                    .textContent =
+                    String(secs).padStart(2, "0");
+
+            }, 1000);
         }
 
-        updateDisplay();
+        // Listen for changes from Firebase
+        onValue(
+            ref(db, "timer"),
+            (snapshot) => {
+                const data = snapshot.val();
+
+                if (!data) return;
+
+                startCountdown(data.endTime);
+            }
+        );
     </script>
 
 </body>
